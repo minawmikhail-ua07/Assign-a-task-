@@ -1,0 +1,111 @@
+# IT Task Assigner
+
+Automated round-robin task assignment for IT engineering teams. Pulls tasks from Google Calendar, detects out-of-office engineers, assigns work in rotation, and notifies the team on Slack — all from a single HTML file with no backend required.
+
+---
+
+## What It Does
+
+Each time you run it, the tool:
+
+1. **Fetches tasks** from your HR Google Calendar for the target date
+2. **Checks OOO status** by scanning each engineer's calendar for all-day events matching your configured keyword (e.g. `OOO`, `Out of Office`)
+3. **Assigns tasks round-robin** — starting from the last engineer who received a task, rotating through the roster in order
+4. **Skips OOO engineers** automatically and records who was skipped and why on each assignment card
+5. **Notifies via Slack** — posts an individual message per assignment and a daily summary to your configured channel
+6. **Advances the turn pointer** so the next run continues from where this one left off
+
+---
+
+## Setup
+
+### Requirements
+- An [Anthropic API key](https://console.anthropic.com/)
+- A Google account with Google Calendar access (connected via Claude's Google Calendar integration)
+- A Slack workspace connected via Claude's Slack integration
+
+### Configuration Fields
+
+| Field | Description | Example |
+|---|---|---|
+| Anthropic API Key | Your `sk-ant-...` key from Anthropic Console | `sk-ant-api03-...` |
+| HR Calendar ID | The Google Calendar to pull tasks from | `hr-team@company.com` or `primary` |
+| OOO Keyword | Text to detect in all-day events for OOO | `OOO` |
+| Slack Channel | Channel to post assignment notifications | `#it-oncall` |
+| Target Date | Date to run assignments for | `today` or `2025-06-10` |
+
+### Engineer Roster
+
+Add engineers using the input field in the sidebar. Format: `Full Name @slack.handle`
+
+```
+Alex Kim @alex.kim
+Jordan Lee @jordan.lee
+Sam Rivera @sam.rivera
+```
+
+Engineers are assigned in the order they appear in the list. The `NEXT` badge shows who is up for the next task. You can add or remove engineers at any time — the rotation continues from the current pointer.
+
+---
+
+## How Round-Robin Works
+
+```
+Run 1:  Task A → Alex    Task B → Jordan   Task C → Sam
+Run 2:  Task A → Taylor  Task B → Alex     (Jordan = OOO, skipped)
+Run 3:  Task A → Jordan  ...
+```
+
+The turn index persists across runs within the same session. OOO engineers are skipped for that day only — they resume in normal rotation on the next run.
+
+---
+
+## Slack Notifications
+
+Each assignment generates a Slack message in this format:
+
+```
+📋 *Onboard new contractor* → assigned to *Alex Kim* (@alex.kim)
+Time: 10:00 AM – 11:00 AM
+Skipped: Jordan Lee (OOO)
+```
+
+At the end of a run, a summary is posted listing all assignments and any engineers who were out.
+
+---
+
+## Interface
+
+- **Left sidebar** — configuration, roster management, run trigger
+- **Main panel** — assignment cards per task, showing assignee, skipped engineers, and Slack status
+- **Right panel** — live run log with timestamps, showing every calendar fetch, OOO check, and Slack post
+- **Stats bar** — task count, assignments made, engineers skipped, Slack notifications sent
+
+---
+
+## Technical Notes
+
+- Single-file HTML/CSS/JS — no build step, no server, no dependencies to install
+- Calls the Anthropic API directly from the browser using `anthropic-dangerous-direct-browser-access`
+- Uses Claude as the reasoning layer, with Google Calendar and Slack connected via MCP (Model Context Protocol)
+- API key is never stored — enter it fresh each session
+- Deploy to GitHub Pages, Netlify, or any static host — or just open locally in a browser
+
+---
+
+## Integrations
+
+| Service | Purpose | MCP Server |
+|---|---|---|
+| Google Calendar | Fetch HR tasks + check engineer OOO | `calendarmcp.googleapis.com` |
+| Slack | Post assignment notifications | `mcp.slack.com` |
+| Anthropic API | AI reasoning layer (Claude Sonnet) | `api.anthropic.com` |
+
+---
+
+## Limitations
+
+- OOO detection relies on all-day events containing your configured keyword in the title
+- The turn index resets when the page is refreshed — note the current `NEXT` engineer before closing
+- Google Calendar access depends on your Claude Google Calendar connection being active
+- Designed for teams of 2–20 engineers
